@@ -1,0 +1,17 @@
+{
+  "name": "sa-biz-bot-core",
+  "version": "1.0.0",
+  "description": "White-label WhatsApp bot for SA beauty salons with house calls",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "node src/index.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "body-parser": "^1.20.2",
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.1",
+    "cors": "^2.8.5"
+  }
+}
