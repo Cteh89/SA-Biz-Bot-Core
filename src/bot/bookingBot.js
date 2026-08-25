@@ -86,9 +86,10 @@ function makeReference() {
 }
 
 class BookingBot {
-  constructor(config, { onBooking } = {}) {
+  constructor(config, { onBooking, knowledgeBase } = {}) {
     this.config = config;
     this.onBooking = onBooking || (async () => {});
+    this.knowledgeBase = knowledgeBase || null;
     this.sessions = new Map();
   }
 
@@ -157,6 +158,10 @@ class BookingBot {
       }
       if (['2', 'book', 'booking', 'bhuka', 'etsa booking'].includes(normalized)) {
         return { text: this.startBooking(customer, language), language };
+      }
+      const knowledgeAnswer = this.knowledgeBase ? await this.knowledgeBase.answer(value, language) : null;
+      if (knowledgeAnswer) {
+        return { text: knowledgeAnswer.answer, language, knowledgeBaseEntryId: knowledgeAnswer.id };
       }
       return { text: copy.welcome(this.config.businessName), language };
     }

@@ -48,6 +48,25 @@ Render’s filesystem is ephemeral, so do not rely on local files to retain book
 
 > The Apps Script receiver uses the booking reference as an idempotency key, so a retry cannot create duplicate rows for the same confirmed booking.
 
+## Give each business a modifiable knowledge base
+
+The booking state machine remains fixed and reliable, but all non-booking questions can now be answered from a client-specific knowledge base. This is intentionally **configuration-driven**, not hard-coded: a salon can change its operating hours, address, policies, promotions, product details, and FAQs without a developer changing the bot source.
+
+For the first market-ready version, deploy one bot instance per business and reuse its secure Google Apps Script endpoint for both bookings and knowledge-base reads. In the same Google Sheet, the script automatically creates a `KnowledgeBase` tab with these columns:
+
+| Column | What the business controls |
+|---|---|
+| `ID` | A stable identifier, such as `hours` or `cancellation-policy`. |
+| `Keywords (comma-separated)` | Phrases that should trigger the answer, for example `hours, opening times, open`. |
+| `Answer` | The exact customer-facing reply. |
+| `Language (all/en/zu/st)` | The language to which the entry applies; `all` is shared. |
+| `Enabled (TRUE/FALSE)` | Disable an answer without deleting it. |
+| `Priority` | A higher number wins when answers have similar keyword matches. |
+
+Set `KNOWLEDGE_BASE_URL` to the Apps Script `/exec` URL and `KNOWLEDGE_BASE_SECRET` to the same shared secret as the booking receiver. The bot refreshes the remote entries every five minutes by default, so edits take effect without a Render redeploy. For a small demo only, `KNOWLEDGE_BASE_JSON` can hold an inline array of entries; use the Google Sheet for actual client-managed content.
+
+> This version is a **single-business deployment model**. It is the fastest secure path to market because each client’s secrets, booking sheet, and content are isolated. A later multi-tenant product should add authenticated client accounts, tenant routing, audit logs, a database, and per-tenant rate limits before one deployment is shared across businesses.
+
 ## Deploy on Render
 
 The repository includes [`render.yaml`](render.yaml), which defines a Node web service, uses `npm ci`, starts with `npm start`, and checks `/healthz`. You can use **New → Blueprint** in Render and connect this repository, or create a Node Web Service manually with the same commands.
@@ -70,6 +89,9 @@ Set the following secret environment variables in Render. Never commit them or p
 | `META_APP_SECRET` | Strongly recommended | Verifies that webhook requests were signed by Meta. |
 | `GOOGLE_SHEETS_WEBHOOK_URL` | Yes for production bookings | Apps Script web-app URL ending in `/exec`. |
 | `GOOGLE_SHEETS_WEBHOOK_SECRET` | Yes for production bookings | Shared secret that authorizes the Apps Script receiver. |
+| `KNOWLEDGE_BASE_URL` | Yes for client-managed answers | Use the same Apps Script `/exec` URL as the booking receiver. |
+| `KNOWLEDGE_BASE_SECRET` | Yes for client-managed answers | Same secret used by the Apps Script receiver. |
+| `KNOWLEDGE_BASE_CACHE_TTL_SECONDS` | Optional | Refresh interval; defaults to `300` seconds. |
 | `OWNER_WHATSAPP` | Optional | E.164-style owner number without `+`, for a best-effort owner alert. |
 | `BUSINESS_NAME` | Optional | Name shown in bot replies; defaults to `Glam by Thandi`. |
 | `SERVICES_JSON` | Optional | Replaces the default service menu. |

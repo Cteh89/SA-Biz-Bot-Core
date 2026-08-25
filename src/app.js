@@ -3,6 +3,7 @@ const express = require('express');
 const path = require('path');
 const { getConfig } = require('./bot/config');
 const { BookingBot } = require('./bot/bookingBot');
+const { createKnowledgeBase } = require('./bot/knowledgeBase');
 const { createWhatsAppClient } = require('./whatsapp/client');
 const { createBookingStore } = require('./bookingStore');
 
@@ -83,7 +84,14 @@ function createApp({ env = process.env, logger = console, whatsappClient: suppli
       graphApiVersion: env.GRAPH_API_VERSION || 'v26.0',
     });
   const bookingStore = createBookingStore({ config, whatsappClient, logger });
-  const bot = new BookingBot(config, { onBooking: bookingStore.recordBooking });
+  const knowledgeBase = createKnowledgeBase({
+    inlineEntries: config.knowledgeBaseJson,
+    remoteUrl: config.knowledgeBaseUrl,
+    remoteSecret: config.knowledgeBaseSecret,
+    cacheTtlMs: config.knowledgeBaseCacheTtlMs,
+    logger,
+  });
+  const bot = new BookingBot(config, { onBooking: bookingStore.recordBooking, knowledgeBase });
   const processedMessages = createProcessedMessageCache();
   const app = express();
 
@@ -106,6 +114,9 @@ function createApp({ env = process.env, logger = console, whatsappClient: suppli
     const warnings = [];
     if (!config.googleSheetsWebhookUrl) warnings.push('GOOGLE_SHEETS_WEBHOOK_URL is not configured.');
     if (!config.ownerWhatsApp) warnings.push('OWNER_WHATSAPP is not configured.');
+    if (!config.knowledgeBaseUrl && !config.knowledgeBaseJson) {
+      warnings.push('No client knowledge base is configured.');
+    }
     const ready = missing.length === 0;
     response.status(ready ? 200 : 503).json({
       status: ready ? 'ready' : 'not_ready',

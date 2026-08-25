@@ -59,6 +59,10 @@ function getConfig(env = process.env) {
     ownerNotificationTemplateLanguage: env.OWNER_NOTIFICATION_TEMPLATE_LANGUAGE?.trim() || 'en_US',
     googleSheetsWebhookUrl: env.GOOGLE_SHEETS_WEBHOOK_URL || '',
     googleSheetsWebhookSecret: env.GOOGLE_SHEETS_WEBHOOK_SECRET || '',
+    knowledgeBaseJson: env.KNOWLEDGE_BASE_JSON || '',
+    knowledgeBaseUrl: env.KNOWLEDGE_BASE_URL || '',
+    knowledgeBaseSecret: env.KNOWLEDGE_BASE_SECRET || '',
+    knowledgeBaseCacheTtlMs: parseOptionalNumber(env.KNOWLEDGE_BASE_CACHE_TTL_SECONDS, 300) * 1000,
     loadSheddingMessage:
       env.LOAD_SHEDDING_MESSAGE?.trim() ||
       'Please note: appointments may be affected by load-shedding. We will confirm your booking before your visit.',
