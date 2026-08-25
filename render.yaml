@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: sa-biz-bot-core
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: VERIFY_TOKEN
+        generateValue: true
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: PHONE_NUMBER_ID
+        sync: false
+      - key: META_APP_SECRET
+        sync: false
+      - key: OWNER_WHATSAPP
+        sync: false
+      - key: GOOGLE_SHEETS_WEBHOOK_URL
+        sync: false
+      - key: BUSINESS_NAME
+        value: Glam by Thandi
+      - key: TIME_ZONE
+        value: Africa/Johannesburg

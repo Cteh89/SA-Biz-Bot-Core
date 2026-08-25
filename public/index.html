@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SA Biz Bot — Test Chat</title>
+    <style>
+      :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f3f5f4; color: #172018; }
+      main { width: min(100%, 480px); height: 100vh; max-height: 760px; display: flex; flex-direction: column; background: #efeae2; box-shadow: 0 12px 32px #0002; }
+      header { padding: 18px 20px; background: #075e54; color: white; }
+      h1 { font-size: 1.05rem; margin: 0; }
+      header p { margin: 4px 0 0; font-size: .8rem; opacity: .85; }
+      #messages { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 10px; background-image: radial-gradient(#ffffff88 1px, transparent 1px); background-size: 18px 18px; }
+      .message { max-width: 85%; padding: 10px 12px; border-radius: 9px; white-space: pre-wrap; line-height: 1.38; font-size: .94rem; box-shadow: 0 1px 1px #0001; }
+      .bot { align-self: flex-start; background: #fff; border-top-left-radius: 0; }
+      .user { align-self: flex-end; background: #d9fdd3; border-top-right-radius: 0; }
+      .system { align-self: center; background: #fff8c5; font-size: .78rem; text-align: center; }
+      form { display: flex; gap: 8px; padding: 10px; background: #f0f2f5; }
+      input { min-width: 0; flex: 1; border: 0; border-radius: 9px; padding: 12px 14px; font: inherit; }
+      button { border: 0; border-radius: 9px; padding: 0 16px; background: #008069; color: #fff; font-weight: 700; cursor: pointer; }
+      button:disabled { opacity: .6; cursor: wait; }
+      .quick-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 10px 10px; background: #f0f2f5; }
+      .quick-actions button { padding: 7px 10px; background: #e7f6f1; color: #075e54; font-size: .82rem; }
+      @media (min-height: 761px) { main { height: 720px; border-radius: 14px; overflow: hidden; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header><h1>SA Biz Bot — Test Chat</h1><p>Local simulator. Use this before connecting Meta WhatsApp.</p></header>
+      <section id="messages" aria-live="polite"></section>
+      <div class="quick-actions" aria-label="Quick actions">
+        <button type="button" data-message="1">Prices</button>
+        <button type="button" data-message="2">Book now</button>
+        <button type="button" data-message="loadshedding">Load-shedding</button>
+        <button type="button" data-message="cancel">Cancel</button>
+      </div>
+      <form id="chat-form"><input id="message" autocomplete="off" placeholder="Type a message, for example: 2" aria-label="Message" /><button id="send" type="submit">Send</button></form>
+    </main>
+    <script>
+      const messages = document.querySelector('#messages');
+      const form = document.querySelector('#chat-form');
+      const input = document.querySelector('#message');
+      const send = document.querySelector('#send');
+      const customer = `demo-${crypto.randomUUID()}`;
+
+      function addMessage(text, type) {
+        const item = document.createElement('div');
+        item.className = `message ${type}`;
+        item.textContent = text;
+        messages.append(item);
+        messages.scrollTop = messages.scrollHeight;
+      }
+
+      async function sendMessage(text) {
+        if (!text) return;
+        addMessage(text, 'user');
+        send.disabled = true;
+        input.disabled = true;
+        try {
+          const response = await fetch('/api/test-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ customer, text }),
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || 'The bot could not process this message.');
+          addMessage(data.reply, 'bot');
+        } catch (error) {
+          addMessage(`Test error: ${error.message}`, 'system');
+        } finally {
+          send.disabled = false;
+          input.disabled = false;
+          input.focus();
+        }
+      }
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const text = input.value.trim();
+        input.value = '';
+        await sendMessage(text);
+      });
+      document.querySelectorAll('[data-message]').forEach((button) => button.addEventListener('click', () => sendMessage(button.dataset.message)));
+      addMessage('Hello! Welcome to the SA Biz Bot test chat. Reply 1 for prices or 2 to make a booking.', 'bot');
+    </script>
+  </body>
+</html>
