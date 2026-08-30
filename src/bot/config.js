@@ -37,17 +37,49 @@ function parseOptionalNumber(value, fallback) {
   if (value === undefined || value === '') return fallback;
   const number = Number(value);
   if (!Number.isFinite(number) || number < 0) {
-    throw new Error('House-call fees must be zero or a positive number.');
+    throw new Error('Configured numeric values must be zero or a positive number.');
   }
   return number;
+}
+
+function parseCopyOverrides(value) {
+  if (!value) return {};
+
+  let parsed;
+  try {
+    parsed = JSON.parse(value);
+  } catch (error) {
+    throw new Error(`BOT_COPY_JSON must contain valid JSON: ${error.message}`);
+  }
+
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('BOT_COPY_JSON must be an object keyed by language (en, zu, st).');
+  }
+
+  return Object.fromEntries(
+    Object.entries(parsed).map(([language, copy]) => {
+      if (!['en', 'zu', 'st'].includes(language) || !copy || typeof copy !== 'object' || Array.isArray(copy)) {
+        throw new Error('BOT_COPY_JSON languages must be en, zu, or st and contain objects.');
+      }
+      const safeCopy = Object.fromEntries(
+        Object.entries(copy).filter(([, text]) => typeof text === 'string' && text.trim()).map(([key, text]) => [key, text.trim()]),
+      );
+      return [language, safeCopy];
+    }),
+  );
 }
 
 function getConfig(env = process.env) {
   const services = parseServices(env.SERVICES_JSON);
   const businessName = env.BUSINESS_NAME?.trim() || 'Glam by Thandi';
+  const requireConsent = String(env.REQUIRE_CONSENT ?? 'true').toLowerCase() !== 'false';
 
   return {
     businessName,
+    requireConsent,
+    privacyNotice:
+      env.PRIVACY_NOTICE?.trim() ||
+      'Before we continue, may we save your WhatsApp number and booking details to manage your request? Reply yes to agree or no to cancel.',
     currency: env.CURRENCY?.trim() || 'R',
     services,
     houseCallFee: {
@@ -63,6 +95,7 @@ function getConfig(env = process.env) {
     knowledgeBaseUrl: env.KNOWLEDGE_BASE_URL || '',
     knowledgeBaseSecret: env.KNOWLEDGE_BASE_SECRET || '',
     knowledgeBaseCacheTtlMs: parseOptionalNumber(env.KNOWLEDGE_BASE_CACHE_TTL_SECONDS, 300) * 1000,
+    copyOverrides: parseCopyOverrides(env.BOT_COPY_JSON),
     loadSheddingMessage:
       env.LOAD_SHEDDING_MESSAGE?.trim() ||
       'Please note: appointments may be affected by load-shedding. We will confirm your booking before your visit.',
@@ -70,4 +103,4 @@ function getConfig(env = process.env) {
   };
 }
 
-module.exports = { DEFAULT_SERVICES, getConfig };
+module.exports = { DEFAULT_SERVICES, getConfig, parseCopyOverrides };

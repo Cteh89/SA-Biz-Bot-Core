@@ -20,6 +20,12 @@ services:
         sync: false
       - key: OWNER_WHATSAPP
         sync: false
+      - key: REQUIRE_CONSENT
+        value: "true"
+      - key: PRIVACY_NOTICE
+        sync: false
+      - key: BOT_COPY_JSON
+        sync: false
       - key: GOOGLE_SHEETS_WEBHOOK_URL
         sync: false
       - key: GOOGLE_SHEETS_WEBHOOK_SECRET

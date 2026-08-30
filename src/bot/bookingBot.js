@@ -62,6 +62,56 @@ function normalize(value = '') {
   return String(value).trim().toLowerCase();
 }
 
+function fillTemplate(text, values) {
+  return String(text).replace(/\{\{([a-zA-Z][a-zA-Z0-9_]*)\}\}/g, (_, key) => values[key] ?? '');
+}
+
+function createCopy(language, overrides, businessName, loadSheddingMessage, privacyNotice) {
+  const base = COPY[language] || COPY.en;
+  const custom = overrides?.[language] || {};
+  const choose = (key, values = {}) =>
+    Object.prototype.hasOwnProperty.call(custom, key) ? fillTemplate(custom[key], values) : base[key];
+
+  return {
+    welcome: (name = businessName) =>
+      Object.prototype.hasOwnProperty.call(custom, 'welcome')
+        ? fillTemplate(custom.welcome, { businessName: name })
+        : base.welcome(name),
+    consent: Object.prototype.hasOwnProperty.call(custom, 'consent')
+      ? fillTemplate(custom.consent, { businessName })
+      : privacyNotice,
+    prices: choose('prices'),
+    chooseService: choose('chooseService'),
+    chooseLocation: choose('chooseLocation'),
+    askAddress: choose('askAddress'),
+    askDateTime: choose('askDateTime'),
+    askName: choose('askName'),
+    confirm: (booking, price) =>
+      Object.prototype.hasOwnProperty.call(custom, 'confirm')
+        ? fillTemplate(custom.confirm, {
+            service: booking.service.name,
+            appointment: booking.locationType === 'house_call' ? 'House call' : 'Salon',
+            address: booking.address || '',
+            preferredDateTime: booking.preferredDateTime,
+            customerName: booking.customerName,
+            price,
+          })
+        : base.confirm(booking, price),
+    confirmed: (reference) =>
+      Object.prototype.hasOwnProperty.call(custom, 'confirmed')
+        ? fillTemplate(custom.confirmed, { reference })
+        : base.confirmed(reference),
+    cancelled: choose('cancelled'),
+    help: choose('help'),
+    invalidService: choose('invalidService'),
+    invalidLocation: choose('invalidLocation'),
+    loadShedding: () =>
+      Object.prototype.hasOwnProperty.call(custom, 'loadShedding')
+        ? fillTemplate(custom.loadShedding, { message: loadSheddingMessage, loadSheddingMessage })
+        : base.loadShedding(loadSheddingMessage),
+  };
+}
+
 function detectLanguage(text) {
   const value = normalize(text);
   if (/\b(sawubona|sanibonani|ngicela|yebo|cha|siyabonga)\b/.test(value)) return 'zu';
@@ -90,7 +140,19 @@ class BookingBot {
     this.config = config;
     this.onBooking = onBooking || (async () => {});
     this.knowledgeBase = knowledgeBase || null;
+    this.copyOverrides = config.copyOverrides || {};
+    this.consented = new Set();
     this.sessions = new Map();
+  }
+
+  copy(language) {
+    return createCopy(
+      language,
+      this.copyOverrides,
+      this.config.businessName,
+      this.config.loadSheddingMessage,
+      this.config.privacyNotice,
+    );
   }
 
   priceFor(booking) {
@@ -141,14 +203,15 @@ class BookingBot {
     const normalized = normalize(value);
     const active = this.sessions.get(customer);
     const language = active?.language || detectLanguage(value);
-    const copy = COPY[language];
+    const copy = this.copy(language);
 
     if (normalized === 'loadshedding' || normalized === 'load shedding') {
-      return { text: copy.loadShedding(this.config.loadSheddingMessage), language };
+      return { text: copy.loadShedding(), language };
     }
 
     if (isNo(value) || normalized === 'cancel') {
       this.sessions.delete(customer);
+      this.consented.delete(customer);
       return { text: copy.cancelled, language };
     }
 
@@ -157,6 +220,14 @@ class BookingBot {
         return { text: `${copy.prices}\n\n${this.serviceList()}\n\n${copy.help}`, language };
       }
       if (['2', 'book', 'booking', 'bhuka', 'etsa booking'].includes(normalized)) {
+        if (this.config.requireConsent && !this.consented.has(customer)) {
+          this.sessions.set(customer, {
+            step: 'consent',
+            language,
+            booking: { customerWhatsApp: null },
+          });
+          return { text: copy.consent, language };
+        }
         return { text: this.startBooking(customer, language), language };
       }
       const knowledgeAnswer = this.knowledgeBase ? await this.knowledgeBase.answer(value, language) : null;
@@ -168,6 +239,12 @@ class BookingBot {
 
     const { booking } = active;
     switch (active.step) {
+      case 'consent':
+        if (!isYes(value)) return { text: copy.consent, language };
+        this.consented.add(customer);
+        active.booking.customerWhatsApp = customer;
+        active.step = 'service';
+        return { text: `${copy.chooseService}\n\n${this.serviceList()}`, language };
       case 'service': {
         const service = this.findService(value);
         if (!service) return { text: copy.invalidService, language };
@@ -228,4 +305,4 @@ class BookingBot {
   }
 }
 
-module.exports = { BookingBot, COPY, detectLanguage, formatMoney };
+module.exports = { BookingBot, COPY, createCopy, detectLanguage, fillTemplate, formatMoney };

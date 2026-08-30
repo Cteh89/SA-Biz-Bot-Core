@@ -29,7 +29,7 @@ test('selects the best enabled answer for a customer question', () => {
 
 test('uses inline business knowledge for non-booking questions while preserving booking commands', async () => {
   const knowledgeBase = createKnowledgeBase({ inlineEntries: entries });
-  const bot = new BookingBot(getConfig({ BUSINESS_NAME: 'Client Salon' }), { knowledgeBase });
+  const bot = new BookingBot(getConfig({ BUSINESS_NAME: 'Client Salon', REQUIRE_CONSENT: 'false' }), { knowledgeBase });
 
   const answer = await bot.handleMessage({ customer: 'customer-knowledge', text: 'What are your hours?' });
   assert.equal(answer.knowledgeBaseEntryId, 'hours');

@@ -5,7 +5,7 @@ const { getConfig } = require('../src/bot/config');
 
 test('completes a salon booking and calls the booking handler once', async () => {
   const savedBookings = [];
-  const bot = new BookingBot(getConfig({ BUSINESS_NAME: 'Test Salon' }), {
+  const bot = new BookingBot(getConfig({ BUSINESS_NAME: 'Test Salon', REQUIRE_CONSENT: 'false' }), {
     onBooking: async (booking) => savedBookings.push(booking),
   });
 
@@ -25,7 +25,7 @@ test('completes a salon booking and calls the booking handler once', async () =>
 });
 
 test('adds a house-call estimate and permits cancellation', async () => {
-  const bot = new BookingBot(getConfig({ HOUSE_CALL_FEE_MIN: '80', HOUSE_CALL_FEE_MAX: '150' }));
+  const bot = new BookingBot(getConfig({ HOUSE_CALL_FEE_MIN: '80', HOUSE_CALL_FEE_MAX: '150', REQUIRE_CONSENT: 'false' }));
 
   await bot.handleMessage({ customer: 'customer-2', text: '2' });
   await bot.handleMessage({ customer: 'customer-2', text: '2' });
@@ -37,6 +37,26 @@ test('adds a house-call estimate and permits cancellation', async () => {
   assert.match(confirmation.text, /Estimated price: R430/i);
   const cancelled = await bot.handleMessage({ customer: 'customer-2', text: 'cancel' });
   assert.match(cancelled.text, /cancelled/i);
+});
+
+test('requires consent before starting a booking by default', async () => {
+  const bot = new BookingBot(getConfig({ BUSINESS_NAME: 'Consent Salon' }));
+
+  const consent = await bot.handleMessage({ customer: 'customer-consent', text: '2' });
+  assert.match(consent.text, /may we save your WhatsApp number/i);
+
+  const servicePrompt = await bot.handleMessage({ customer: 'customer-consent', text: 'yes' });
+  assert.match(servicePrompt.text, /Which service/i);
+});
+
+test('uses a client-specific consent template', async () => {
+  const bot = new BookingBot(getConfig({
+    BUSINESS_NAME: 'Custom Salon',
+    BOT_COPY_JSON: JSON.stringify({ en: { consent: 'Welcome to {{businessName}}. Reply yes to continue.' } }),
+  }));
+
+  const response = await bot.handleMessage({ customer: 'customer-template', text: '2' });
+  assert.equal(response.text, 'Welcome to Custom Salon. Reply yes to continue.');
 });
 
 test('responds in Zulu when the customer starts in Zulu', async () => {

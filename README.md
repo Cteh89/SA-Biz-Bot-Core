@@ -65,6 +65,12 @@ For the first market-ready version, deploy one bot instance per business and reu
 
 Set `KNOWLEDGE_BASE_URL` to the Apps Script `/exec` URL and `KNOWLEDGE_BASE_SECRET` to the same shared secret as the booking receiver. The bot refreshes the remote entries every five minutes by default, so edits take effect without a Render redeploy. For a small demo only, `KNOWLEDGE_BASE_JSON` can hold an inline array of entries; use the Google Sheet for actual client-managed content.
 
+### Customize the conversation wording
+
+Each business can also override the standard booking wording through `BOT_COPY_JSON`, without changing the booking logic. The object is keyed by `en`, `zu`, and `st`, and may override `welcome`, `prices`, `chooseService`, `chooseLocation`, `askAddress`, `askDateTime`, `askName`, `confirm`, `confirmed`, `cancelled`, `help`, `invalidService`, `invalidLocation`, or `loadShedding`. Supported placeholders include `{{businessName}}`, `{{service}}`, `{{appointment}}`, `{{address}}`, `{{preferredDateTime}}`, `{{customerName}}`, `{{price}}`, `{{reference}}`, and `{{loadSheddingMessage}}`.
+
+This creates two clear editing layers: the business can maintain facts and FAQs in the `KnowledgeBase` sheet, while an installer can set branded conversation wording through the deployment configuration. It is intentionally a **single-business deployment model** for now, which keeps each client’s credentials, bookings, and content isolated. A later multi-tenant product should add authenticated client accounts, tenant routing, audit logs, a database, and per-tenant rate limits before sharing one deployment across businesses.
+
 > This version is a **single-business deployment model**. It is the fastest secure path to market because each client’s secrets, booking sheet, and content are isolated. A later multi-tenant product should add authenticated client accounts, tenant routing, audit logs, a database, and per-tenant rate limits before one deployment is shared across businesses.
 
 ## Deploy on Render
@@ -95,6 +101,9 @@ Set the following secret environment variables in Render. Never commit them or p
 | `OWNER_WHATSAPP` | Optional | E.164-style owner number without `+`, for a best-effort owner alert. |
 | `BUSINESS_NAME` | Optional | Name shown in bot replies; defaults to `Glam by Thandi`. |
 | `SERVICES_JSON` | Optional | Replaces the default service menu. |
+| `REQUIRE_CONSENT` | Recommended; defaults to `true` | Requires opt-in before a booking session stores the customer number in memory or writes a booking. |
+| `PRIVACY_NOTICE` | Optional | The business-specific consent request shown before booking. |
+| `BOT_COPY_JSON` | Optional | Per-language overrides for booking prompts and confirmation templates. |
 
 ## Connect Meta WhatsApp Cloud API
 
